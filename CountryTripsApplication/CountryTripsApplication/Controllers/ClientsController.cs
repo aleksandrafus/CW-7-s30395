@@ -11,6 +11,7 @@ public class ClientsController(IDbService dbService) : ControllerBase
 {
     [HttpGet]
     [Route("{id}/trips")]
+    //GET => /api/clients/{id}/trips
     public async Task<IActionResult> GetClientsTrips([FromRoute] int id)
     {
         try
@@ -25,6 +26,7 @@ public class ClientsController(IDbService dbService) : ControllerBase
 
 
     [HttpPost]
+    //POST => /api/clients
     public async Task<IActionResult> CreateClient([FromBody] ClientCreateDTO body)
     {
         var client = await dbService.CreateClientAsync(body);
@@ -34,6 +36,7 @@ public class ClientsController(IDbService dbService) : ControllerBase
 
     [HttpPut]
     [Route("{id}/trips/{tripId}")]
+    //PUT => /api/clients/{id}/trips/{tripId}
     public async Task<IActionResult> RegisterClientToTrip([FromRoute] int id, [FromRoute] int tripId)
     {
         try
@@ -48,6 +51,22 @@ public class ClientsController(IDbService dbService) : ControllerBase
         catch (ClientLimitExceeded)
         {
             return BadRequest($"Client limit to a trip with id {tripId} exceeded");
+        }
+    }
+
+    [HttpDelete]
+    [Route("{id}/trips/{tripId}")]
+    //DELETE => /api/clients/{id}/trips/{tripId}
+    public async Task<IActionResult> DeleteClientFromTrip([FromRoute] int id, [FromRoute] int tripId)
+    {
+        try
+        {
+            await dbService.DeleteClientFromTripAsync(id, tripId);
+            return NoContent();
+        }
+        catch (NotFoundException)
+        {
+            return NotFound();
         }
     }
     

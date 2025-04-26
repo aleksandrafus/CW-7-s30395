@@ -9,6 +9,7 @@ public class TripsController(IDbService dbService) : ControllerBase
 {
 
     [HttpGet]
+    //GET => /api/trips
     public async Task<IActionResult> GetTrips()
     {
         return Ok(await dbService.GetTripsAsync());

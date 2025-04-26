@@ -11,6 +11,7 @@ public interface IDbService
     public Task<List<TripGetDTO>> GetClientsTripsByIdAsync(int id);
     public Task<Client> CreateClientAsync(ClientCreateDTO client);
     public Task RegisterClientToTripAsync(int clientId, int tripId);
+    public Task DeleteClientFromTripAsync(int clientId, int tripId);
 }
 
 public class DbService(IConfiguration config) : IDbService
@@ -22,10 +23,11 @@ public class DbService(IConfiguration config) : IDbService
         var result = new List<TripGetDTO>();
         
         await using var connection = new SqlConnection(_connectionString);
-        const string sql = @"
-            SELECT t.IdTrip, t.Name, t.Description, t.DateFrom, t.DateTo, t.MaxPeople, c.Name AS CountryName
-            FROM Trip t LEFT JOIN Country_Trip ct ON t.IdTrip = ct.IdTrip
-            LEFT JOIN Country c ON ct.IdCountry = c.IdCountry";
+        
+        //SELECT TRIPS AND THEIR INFORMATION WITH THEIR COUNTRIES
+        const string sql = "SELECT t.IdTrip, t.Name, t.Description, t.DateFrom, t.DateTo, t.MaxPeople, c.Name AS CountryName" +
+                           " FROM Trip t LEFT JOIN Country_Trip ct ON t.IdTrip = ct.IdTrip" +
+                           " LEFT JOIN Country c ON ct.IdCountry = c.IdCountry";
         
         await using var command = new SqlCommand(sql, connection);
         await connection.OpenAsync();
@@ -52,13 +54,12 @@ public class DbService(IConfiguration config) : IDbService
     {
         var result = new List<TripGetDTO>();
         
+        //SELECT TRIPS AND THEIR INFORMATION WITH THEIR COUNTRIES WHERE CLIENT'S ID IS PROPER
         await using var connection = new SqlConnection(_connectionString);
-        const string sql = @"
-            SELECT t.IdTrip, t.Name, t.Description, t.DateFrom, t.DateTo, t.MaxPeople, c.Name AS CountryName
-            FROM Trip t INNER JOIN Client_Trip ct ON t.IdTrip = ct.IdTrip
-            LEFT JOIN Country_Trip cct ON t.IdTrip = cct.IdTrip
-            LEFT JOIN Country c ON cct.IdCountry = c.IdCountry
-            WHERE ct.IdClient = @Id";
+        const string sql = "SELECT t.IdTrip, t.Name, t.Description, t.DateFrom, t.DateTo, t.MaxPeople, c.Name AS CountryName" +
+                           " FROM Trip t INNER JOIN Client_Trip ct ON t.IdTrip = ct.IdTrip" +
+                           " LEFT JOIN Country_Trip cct ON t.IdTrip = cct.IdTrip LEFT JOIN Country c ON cct.IdCountry = c.IdCountry" +
+                           " WHERE ct.IdClient = @Id";
         
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@Id", id);
@@ -84,6 +85,7 @@ public class DbService(IConfiguration config) : IDbService
             });
         }
 
+        //IF TRIPS LIST IS EMPTY
         if (result.Count == 0)
         {
             throw new NotFoundException($"Client with id: {id} does not have any trips");
@@ -95,6 +97,8 @@ public class DbService(IConfiguration config) : IDbService
     public async Task<Client> CreateClientAsync(ClientCreateDTO client)
     {
         await using var connection = new SqlConnection(_connectionString);
+        
+        //INSERTING A CLIENT AND GETTING THEIRS ID
         const string sql = "INSERT INTO Clients (FirstName, LastName, Email, Telephone, Pesel)"+
                            " VALUES (@FirstName, @LastName, @Email, @Telephone, @Pesel); " +
                            "SELECT scope_identity()";
@@ -173,6 +177,32 @@ public class DbService(IConfiguration config) : IDbService
 
         await insertCmd.ExecuteNonQueryAsync();
         
+    }
+
+
+    public async Task DeleteClientFromTripAsync(int clientId, int tripId)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+        
+        //CHECK IF REGISTRATION EXISTS
+        var registrationExistsQuery = "SELECT COUNT(1) FROM Client_Trip WHERE IdClient = @ClientId AND IdTrip = @TripId";
+        var registrationExistsCmd = new SqlCommand(registrationExistsQuery, connection);
+        registrationExistsCmd.Parameters.AddWithValue("@ClientId", clientId);
+        registrationExistsCmd.Parameters.AddWithValue("@TripId", tripId);
+        var registrationExists = Convert.ToInt32(await registrationExistsCmd.ExecuteScalarAsync());
+        if (registrationExists == 0)
+        {
+            throw new NotFoundException("Registration not found");
+        }
+        
+        //DELETE REGISTRATION
+        var deleteQuery = "DELETE FROM Client_Trip WHERE IdClient = @ClientId AND IdTrip = @TripId";
+        var deleteCmd = new SqlCommand(deleteQuery, connection);
+        deleteCmd.Parameters.AddWithValue("@ClientId", clientId);
+        deleteCmd.Parameters.AddWithValue("@TripId", tripId);
+
+        await deleteCmd.ExecuteNonQueryAsync();
     }
     
 }
