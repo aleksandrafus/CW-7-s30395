@@ -1,3 +1,5 @@
+using CountryTripsApplication.Services;
+
 namespace CountryTripsApplication;
 
 public class Program
@@ -11,6 +13,7 @@ public class Program
         builder.Services.AddControllers();
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
+        builder.Services.AddTransient<IDbService, DbService>();
 
         var app = builder.Build();
 
